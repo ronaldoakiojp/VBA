@@ -1,17 +1,14 @@
 'Codigo VBA desenvolvido para otimizar processo de consolidacao dos report do VTEX
 'Usuária do macro Izadora
 'Desenvolvido por Ronaldo Akio
-'Ultima atualização 18/09/2024
+'Ultima atualização 20/09/2024
 
-Dim comeco As Date
-Dim count_arquivo As Integer
-Dim cell As Range
-Dim lastRow As Long
+Dim file_path As String
+Dim file_name As String
 
 ' Procedure : TurnOffFunctionality
 ' Purpose   : Turn off automatic calculations, events and screen updating
 Public Sub TurnOffFunctionality()
-    'Application.Calculation = xlCalculationManual
     Application.DisplayStatusBar = False
     Application.EnableEvents = False
     Application.ScreenUpdating = False
@@ -20,71 +17,158 @@ End Sub
 ' Procedure : TurnOnFunctionality
 ' Purpose   : turn on automatic calculations, events and screen updating
 Public Sub TurnOnFunctionality()
-    'Application.Calculation = xlCalculationAutomatic
     Application.DisplayStatusBar = True
     Application.EnableEvents = True
     Application.ScreenUpdating = True
 End Sub
 
-Sub Consolidar()
-    'funcao para otimizar velocidade de processamento
+Public Sub Consolidar()
+'funcao para otimizar velocidade de processamento
     TurnOffFunctionality
     
-    'variavel para controle de performance
+'variavel para controle de performance
     comeco = Now()
     
-    'pasta onde os arquivos a serem consolidados vão estar
-    'arquivos devem estar zipados, como *.CSV
-    pasta = "C:\Users\Administrador\Documents\Izadora\csv\"
+'seta os valores das variasveis globais
+    variaveis_globais
     
-    'pega os arquivos da pasta
+'pasta onde os arquivos a serem consolidados vão estar
+'arquivos devem estar zipados, como *.CSV
+    pasta = file_path & "csv\"
+    
+'pega os arquivos da pasta
     arquivo = Dir(pasta)
     
-    'variaveis iniciais
-    linha_destino = 2
+'variaveis iniciais
+    linha_destino = 3
     linha = 2
     count_arquivo = 0
     
-        'loop de arquivos para realizar a consolidação
-        Do Until arquivo = ""
-
-            Workbooks.Open (pasta & arquivo), Local:=True
-            
-            ultima_linha = Workbooks(arquivo).Sheets(1).UsedRange.Rows.Count
-            
-            ThisWorkbook.Sheets(1).Range("A" & linha_destino & ":CP" & linha_destino + ultima_linha).Value2 = Workbooks(arquivo).Sheets(1).Range("A" & linha & ":CP" & ultima_linha).Value2
-            
-            linha_destino = linha_destino + ultima_linha - 1
-            
-            'contador para checagem
-            count_arquivo = count_arquivo + 1
-            
-            'fecha o arquivo sem salvar
-            Workbooks(arquivo).Close SaveChanges:=False
-            
-            arquivo = Dir()
-            
-         Loop
-         
-        'bug que esta acontecendo, não sei o motivo
-        'deleto as 2 ultimas linhas apos consolidação
-        '   Find last row in column C
-        lastRow = Cells(Rows.Count, "C").End(xlUp).Row
-            
-        '   Delete last two rows
-        Rows(lastRow - 1 & ":" & lastRow).Delete
+'loop de arquivos para realizar a consolidação
+    Do Until arquivo = ""
         
-        'removo possiveis problemas que vieram da base de report
-        For Each cell In Range("A:A")
-            If cell.Value2 Like "*Error transforming*" Then
-                cell.EntireRow.Delete
-            End If
+        Workbooks.Open (pasta & arquivo), Local:=True
+        
+        ultima_linha = Workbooks(arquivo).Sheets(1).UsedRange.Rows.Count
+        
+        ThisWorkbook.Sheets(1).Range("A" & linha_destino & ":CP" & linha_destino + ultima_linha).Value2 = Workbooks(arquivo).Sheets(1).Range("A" & linha & ":CP" & ultima_linha).Value2
+        
+        linha_destino = linha_destino + ultima_linha - 1
+        
+'contador para checagem
+        count_arquivo = count_arquivo + 1
+        
+'fecha o arquivo sem salvar
+        Workbooks(arquivo).Close SaveChanges:=False
+        
+        arquivo = Dir()
+        
+    Loop
+    
+'bug que esta acontecendo, não sei o motivo
+'deleto as 2 ultimas linhas apos consolidação
+'   Find last row in column C
+    lastRow = Cells(Rows.Count, "C").End(xlUp).Row
+    
+'   Delete last two rows
+    Rows(lastRow - 1 & ":" & lastRow).Delete
+    
+'removo possiveis problemas que vieram da base de report
+    For Each cell In Range("A:A")
+        If cell.Value2 Like "*Error transforming*" Then
+            cell.EntireRow.Delete
+        End If
         Next cell
         
-    
-     'funcao para ligar novamente funcionalidades que foram desativados no começo da funcao
-     TurnOnFunctionality
-     
-     'mensagem para controle de performance, em produção comentar essa linha
-     Call MsgBox("Tempo de execução: " & Format(Now() - comeco, "hh:mm:ss") & " , " & count_arquivo & " arquivos processados!")
+'cola as formulas na parte direira da tabela
+        colar_formula
+        
+
+'exporta os dados para um arquivo xlsm
+        exportar_dados
+        
+        limpar_colunas
+        
+        'funcao para ligar novamente funcionalidades que foram desativados no começo da funcao
+        TurnOnFunctionality
+        
+        Application.ThisWorkbook.Save
+        Application.Quit
+        
+'mensagem para controle de performance, em produção comentar essa linha
+'Call MsgBox("Tempo de execução: " & Format(Now() - comeco, "hh:mm:ss") & " , " & count_arquivo & " arquivos processados!")
 End Sub
+    
+    Private Sub colar_formula()
+        
+'pega a ultima linha da coluna CP1
+        ultima_linha = Range("A3").End(xlDown).Row
+        
+'copiar linha com as formulas a parti da coluna CP1
+        Range("CP1:DX1").Copy
+        
+'cola as formulas no range definido
+'necessario ser pastespecial
+        Range("CP3:DX" & ultima_linha).PasteSpecial
+        
+'Troca coluna para ficar igual ao padrao VTEX
+        Range("CK:CK").Copy
+        Range("CR:CR").PasteSpecial
+        
+    End Sub
+    
+    Public Sub limpar_colunas()
+        
+' Define a última linha na coluna A com dados
+        ultima_linha = Range("A3").End(xlDown).Row
+        
+' Verifica se a última linha é maior ou igual a 3 (celula A3)
+        If ultima_linha >= 3 Then
+' Desativa as atualizações na tela para melhorar a velocidade de execução
+            Application.ScreenUpdating = False
+            
+' Exclui as linhas
+            Range("A3:A" & ultima_linha).EntireRow.Delete
+            
+' Ativa as atualizações na tela novamente
+            Application.ScreenUpdating = True
+        End If
+    End Sub
+    
+    
+    
+    Public Sub exportar_dados()
+        
+'pega a ultima linha da coluna CP1
+        ultima_linha = Range("A3").End(xlDown).Row
+        
+'abre o arquivo e limpa ele
+        Workbooks.Open Filename:=file_path & "consolidado\" & file_name
+        Workbooks(file_name).Activate
+        ActiveWorkbook.Sheets(1).UsedRange.ClearContents
+        
+'copiar e colar deve ser um apos o outro
+        Workbooks("Consolidado macro pronto.xlsm").Sheets(1).Range("CP2:DX" & ultima_linha).Copy
+        ActiveWorkbook.Sheets(1).Range("A1").PasteSpecial xlPasteValues
+ 
+'salva e fecha o arquivo com os dados exportados
+        With Workbooks(file_name)
+            .Save
+            .Close
+        End With
+    End Sub
+    
+    Public Sub variaveis_globais()
+        
+        file_path = "C:\Users\Administrador\Documents\Izadora\"
+        
+        mes_extenso = Format(Date, "mmmm")
+        mes_formatado = UCase(Left(mes_extenso, 1)) & Right(mes_extenso, Len(mes_extenso) - 1)
+        
+        ano = Format(Date, "yy")
+        
+        file_name = mes_formatado & " consolidado - " & ano & ".xlsm"
+        
+    End Sub
+    
+

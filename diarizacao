@@ -1,3 +1,19 @@
+
+Sub otimizador_on()
+    Application.DisplayAlerts = False
+    Application.Calculation = xlCalculationManual
+    Application.CalculateBeforeSave = False
+    Application.ScreenUpdating = False
+    If ActiveSheet.AutoFilterMode Then ActiveSheet.ShowAllData
+End Sub
+
+Sub otimizador_off()
+    Application.DisplayAlerts = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.CalculateBeforeSave = True
+    Application.ScreenUpdating = True
+End Sub
+
 Sub formatar_diariazacao()
 	Range("A:A,C:C,D:D,J:J,M:M,N:N,O:O,P:P,Q:Q,S:S,T:T,U:U,V:V,W:W,X:X,Y:Y,Z:Z,AB:AB,AC:AC,AD:AD,AE:AE,AF:AF,AG:AG,AH:AH,AI:AI").Delete
 	

@@ -1,0 +1,79 @@
+Sub formatar_diariazacao()
+	Range("A:A,C:C,D:D,J:J,M:M,N:N,O:O,P:P,Q:Q,S:S,T:T,U:U,V:V,W:W,X:X,Y:Y,Z:Z,AB:AB,AC:AC,AD:AD,AE:AE,AF:AF,AG:AG,AH:AH,AI:AI").Delete
+	
+	Range("J:J").Cut Destination:=Range("L:L")
+	Range("K:K").Cut Destination:=Range("J:J")
+	Range("L:L").Cut Destination:=Range("K:K")
+End Sub
+
+
+Sub diarizacao_jet()
+	otimizador_on
+	
+	Range("A1:K1").AutoFilter Field:=11, Criteria1:="J&T"
+	ultima_linha = Range("A1").End(xlDown).Row
+	
+	Range("H:H").EntireColumn.Hidden = True
+	Range("A1:K" & ultima_linha).Copy
+	
+	Workbooks.Open (file_path & "SIMULADOR - 2024 (JET) zerado.xlsb")
+	ActiveWorkbook.Sheets(1).Range("A3").PasteSpecial
+	ActiveWorkbook.Sheets(1).Range("A3").Delete
+	
+'Copia formulas, verificar se vai copiar por codigo ou manualmente
+'Range("K1:N1").Copy
+'Range("K3:N" & ultima_linha).PasteSpecial
+	
+	full_file_name = file_path & Format(Date, "ddmmyy") & " SIMULADOR (JET).xlsb"
+	
+	With ActiveWorkbook
+		.SaveAs full_file_name, AccessMode:=xlExclusive, ConflictResolution:=Excel.XlSaveConflictResolution.xlLocalSessionChanges
+		.Close
+	End With
+	
+	otimizador_off
+	
+End Sub
+
+
+Sub diarizacao_asaplog()
+	otimizador_on
+	
+	Range("H:H").EntireColumn.Hidden = False
+	arr = Array("ASAPLOG_NORMAL", "ASAPLOG_CR", "ASAPLOGINTER_NORMAL", "ASAPLOG_PRESENTE", "ASAPLOG_CR_PRESENTE")
+	Range("A1:K1").AutoFilter Field:=8, Criteria1:=arr, Operator:=xlFilterValues
+	ultima_linha = Range("A1").End(xlDown).Row
+	Range("H:H").EntireColumn.Hidden = True
+	
+	Range("A1:k" & ultima_linha).Copy
+	
+	Workbooks.Open (file_path & "SIMULADOR - 2024 (ASAPLOG) zerado.xlsb")
+	ActiveWorkbook.Sheets(1).Range("A3").PasteSpecial
+	ActiveWorkbook.Sheets(1).Range("A3").Delete
+	
+'Copia formulas, verificar se vai copiar por codigo ou manualmente
+'Range("K1:N1").Copy
+'Range("K3:N" & ultima_linha).PasteSpecial
+	
+	full_file_name = file_path & Format(Date, "ddmmyy") & " SIMULADOR (ASAPLOG).xlsb"
+	
+	With ActiveWorkbook
+		.SaveAs full_file_name, AccessMode:=xlExclusive, ConflictResolution:=Excel.XlSaveConflictResolution.xlLocalSessionChanges
+		.Close
+	End With
+	
+	otimizador_off
+End Sub
+
+
+Sub diarizacao_geral()
+	
+'formatar_diariazacao
+	
+	file_path = "C:\Users\Administrador\Documents\Raphael\Testando\"
+	
+	diarizacao_jet
+	diarizacao_asaplog
+End Sub
+
+

@@ -1,0 +1,183 @@
+Sub ajustar_tabela()
+    ' Desabilitar a atualização da tela para melhorar o desempenho
+    Application.ScreenUpdating = False
+    
+    ' Formatar a fonte da seleção atual
+    With Selection.Font
+        .Name = "Calibri"
+        .Size = 8
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontMinor
+    End With
+    
+    ' Ajustar alinhamento e propriedades de formatação
+    With Selection
+        .HorizontalAlignment = xlCenter ' Centraliza horizontalmente
+        .VerticalAlignment = xlCenter ' Centraliza verticalmente
+        .WrapText = False
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = True ' Ajustar ao tamanho da célula
+        .ReadingOrder = xlContext
+        .MergeCells = False
+    End With
+    
+    ' Ajustar a altura da linha
+    Cells.RowHeight = 12.75
+    
+    ' Excluir a primeira coluna (Coluna A)
+    Columns("A:A").Delete Shift:=xlToLeft
+    
+    ' Aplicar AutoFiltro na primeira linha
+    Rows("1:1").AutoFilter
+    
+    ' Selecionar a área de dados atual
+    Selection.CurrentRegion.Select
+    
+    ' Configurar a ordenação
+    With ActiveWorkbook.Worksheets(1).Sort
+        .SortFields.Clear
+        ' Ordenar pela coluna B em ordem crescente
+        .SortFields.Add Key:=Range("B2:B4242"), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+        ' Ordenar pela coluna C em ordem crescente
+        .SortFields.Add Key:=Range("C2:C4242"), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+        ' Ordenar pela coluna H em ordem decrescente
+        .SortFields.Add Key:=Range("H2:H4242"), SortOn:=xlSortOnValues, Order:=xlDescending, DataOption:=xlSortNormal
+        .SetRange Range("A1:T4242")
+        .Header = xlYes
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+    
+    ' Aplicar filtros dinâmicos
+    With ActiveSheet.Range("A1:S1")
+        .AutoFilter Field:=2, Criteria1:="Entrega" ' Filtrar coluna B por "Entrega"
+        .AutoFilter Field:=8, Operator:=xlFilterDynamic, Criteria1:=xlFilterLastMonth ' Filtrar coluna H pelo último mês
+    End With
+    
+    ' Substituir valores vazios por uma data padrão
+    Range("E:J").Replace "", "00/01/1900 00:00"
+    Range("M:N").Replace "", "00/01/1900 00:00"
+    Range("K:K").Replace "", "00:00"
+    
+    ' Renomear o cabeçalho da coluna J para "Data Fim"
+    Range("J1").Value = "Data Fim"
+    
+    ' Excluir a primeira coluna após modificações
+    Columns("A:A").Delete
+    
+    ' Ajustar automaticamente a largura das colunas
+    Cells.EntireColumn.AutoFit
+    
+    ' Reativar a atualização da tela
+    Application.ScreenUpdating = True
+End Sub
+
+Sub exportar_arquivo()
+    ' Desabilitar alertas e atualizações de tela
+    Application.DisplayAlerts = False
+    Application.ScreenUpdating = False
+    
+    ' Lista de lotes a serem processados
+    Dim lotes As Variant
+    lotes = Array("LOTE A SP", "LOTE B", "LOTE C", "LOTE A RJ", "LOTE D", "LOTE E", "LOTE T", "LOTE T (CDC)")
+    
+    ' Limpar o conteúdo das planilhas dos lotes
+    LimparPlanilhas lotes
+    
+    ' Filtrar e copiar os dados de acordo com os critérios
+    FiltrarEColar "SOLUCIONA A SP", "LOTE A SP"
+    FiltrarEColar "IMEDIATO B", "LOTE B"
+    FiltrarEColar "IMEDIATO C", "LOTE C"
+    FiltrarEColar "SOLUCIONA A RJ", "LOTE A RJ"
+    FiltrarEColar "Leão Log", "LOTE D"
+    FiltrarEColar "RAFER", "LOTE E"
+    FiltrarEColar "SOLUCIONA T", "LOTE T"
+    FiltrarEColar "LOGICA", "LOTE T (CDC)"
+    
+    ' Salvar os arquivos com os dados dos lotes
+    SalvarArquivo lotes
+    
+    ' Reativar alertas e atualizações de tela
+    Application.DisplayAlerts = True
+    Application.ScreenUpdating = True
+End Sub
+
+Sub LimparPlanilhas(planilhas As Variant)
+    ' Limpar o conteúdo das planilhas fornecidas
+    Dim i As Integer
+    For i = LBound(planilhas) To UBound(planilhas)
+        Sheets(planilhas(i)).Range("A1:AS3000").ClearContents ' Limpa o conteúdo da faixa A1:AS3000
+    Next i
+End Sub
+
+Sub FiltrarEColar(filtro As String, planilhaDestino As String)
+    ' Aplicar o filtro na aba DADOS e copiar os dados para a planilha destino
+    Dim tabela_dados As String
+    tabela_dados = "1. KPI LTA | CJE | CHS"
+    
+    With Sheets(tabela_dados)
+        .Range("A1:AY1").AutoFilter Field:=23, Criteria1:=filtro ' Aplica o filtro na coluna X (campo 23)
+        .Range("A1:AY" & .Cells(.Rows.Count, 3).End(xlUp).Row).SpecialCells(xlCellTypeVisible).Copy ' Copia os dados visíveis filtrados
+    End With
+    
+    Sheets(planilhaDestino).Range("A1").PasteSpecial Paste:=xlPasteValues ' Cola os valores na planilha destino
+    
+    ' Limpar filtros
+    Sheets(tabela_dados).Range("A1:AY1").AutoFilter
+End Sub
+
+Sub SalvarArquivo(planilhas As Variant)
+    ' Definir o caminho da pasta onde os arquivos serão salvos
+    Dim saved_folder As String
+    saved_folder = "C:\Users\Administrador\Documents\Alexandre\Lotes\"
+    
+    ' Salvar cada planilha como um arquivo Excel separado
+    Dim worksheet_name As Variant
+    Dim new_workbook As Workbook
+    
+    For Each worksheet_name In planilhas
+        On Error GoTo ErroSalvar
+        Set new_workbook = Workbooks.Add
+        ThisWorkbook.Worksheets(worksheet_name).Copy new_workbook.Worksheets(1)
+        new_workbook.SaveAs saved_folder & worksheet_name & ".xlsx", 51 ' Salva o arquivo no formato .xlsx
+        new_workbook.Close False
+        On Error GoTo 0
+    Next worksheet_name
+    Exit Sub
+    
+ErroSalvar:
+    ' Mostra uma mensagem em caso de erro ao salvar
+    MsgBox "Erro ao salvar arquivo: " & worksheet_name, vbCritical
+    Resume Next
+End Sub
+
+Sub copiar_base()
+    ' Copiar os dados da planilha "Base dados" para a planilha "1. KPI LTA | CJE | CHS"
+    Worksheets("Base dados").Range("A2", Range("S" & Rows.Count).End(xlUp)).SpecialCells(xlCellTypeVisible).Copy
+    Worksheets("1. KPI LTA | CJE | CHS").Range("A2").PasteSpecial Paste:=xlPasteValues
+End Sub
+
+Sub formatar_sla()
+    ' Medir o tempo de execução
+    Dim inicio As Double
+    inicio = Now()
+    
+    ' Executar os processos principais
+    ajustar_tabela
+    copiar_base
+    exportar_arquivo
+    
+    ' Mostrar o tempo total de execução do macro
+    MsgBox ("O macro demorou: " & Format(Now() - inicio, "hh:mm:ss"))
+End Sub
+
+

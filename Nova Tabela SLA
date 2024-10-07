@@ -1,36 +1,7 @@
+Dim lotes As Variant
+
+
 Sub ajustar_tabela()
-    ' Desabilitar a atualização da tela para melhorar o desempenho
-    Application.ScreenUpdating = False
-    
-    ' Formatar a fonte da seleção atual
-    With Selection.Font
-        .Name = "Calibri"
-        .Size = 8
-        .Strikethrough = False
-        .Superscript = False
-        .Subscript = False
-        .OutlineFont = False
-        .Shadow = False
-        .TintAndShade = 0
-        .ThemeFont = xlThemeFontMinor
-    End With
-    
-    ' Ajustar alinhamento e propriedades de formatação
-    With Selection
-        .HorizontalAlignment = xlCenter ' Centraliza horizontalmente
-        .VerticalAlignment = xlCenter ' Centraliza verticalmente
-        .WrapText = False
-        .Orientation = 0
-        .AddIndent = False
-        .IndentLevel = 0
-        .ShrinkToFit = True ' Ajustar ao tamanho da célula
-        .ReadingOrder = xlContext
-        .MergeCells = False
-    End With
-    
-    ' Ajustar a altura da linha
-    Cells.RowHeight = 12.75
-    
     ' Excluir a primeira coluna (Coluna A)
     Columns("A:A").Delete Shift:=xlToLeft
     
@@ -76,18 +47,10 @@ Sub ajustar_tabela()
     
     ' Ajustar automaticamente a largura das colunas
     Cells.EntireColumn.AutoFit
-    
-    ' Reativar a atualização da tela
-    Application.ScreenUpdating = True
 End Sub
 
 Sub exportar_arquivo()
-    ' Desabilitar alertas e atualizações de tela
-    Application.DisplayAlerts = False
-    Application.ScreenUpdating = False
-    
     ' Lista de lotes a serem processados
-    Dim lotes As Variant
     lotes = Array("LOTE A SP", "LOTE B", "LOTE C", "LOTE A RJ", "LOTE D", "LOTE E", "LOTE T", "LOTE T (CDC)")
     
     ' Limpar o conteúdo das planilhas dos lotes
@@ -105,10 +68,6 @@ Sub exportar_arquivo()
     
     ' Salvar os arquivos com os dados dos lotes
     SalvarArquivo lotes
-    
-    ' Reativar alertas e atualizações de tela
-    Application.DisplayAlerts = True
-    Application.ScreenUpdating = True
 End Sub
 
 Sub LimparPlanilhas(planilhas As Variant)
@@ -161,9 +120,11 @@ ErroSalvar:
 End Sub
 
 Sub copiar_base()
+
     ' Copiar os dados da planilha "Base dados" para a planilha "1. KPI LTA | CJE | CHS"
     Worksheets("Base dados").Range("A2", Range("S" & Rows.Count).End(xlUp)).SpecialCells(xlCellTypeVisible).Copy
     Worksheets("1. KPI LTA | CJE | CHS").Range("A2").PasteSpecial Paste:=xlPasteValues
+
 End Sub
 
 Sub formatar_sla()
@@ -171,13 +132,148 @@ Sub formatar_sla()
     Dim inicio As Double
     inicio = Now()
     
+    'metodo padrão para melhorar performance
+    TurnOffFunctionality
+    
     ' Executar os processos principais
     ajustar_tabela
     copiar_base
     exportar_arquivo
+    copia_formatacao_modelo lotes
+    
+    'ativar funcionalidades
+    TurnOnFunctionality
     
     ' Mostrar o tempo total de execução do macro
     MsgBox ("O macro demorou: " & Format(Now() - inicio, "hh:mm:ss"))
 End Sub
+Sub copia_formatacao_modelo(planilhas As Variant)
+    Dim sourceWorkbook As Workbook
+    Dim destWorkbook As Workbook
+    Dim sourceSheet As Worksheet
+    Dim destSheet As Worksheet
+    Dim sourcePath As String
+    Dim destPath As String
+    Dim lastRow As Long, lastCol As Long
+    
+    'Variavel para testar localmente, não esquecer de retirar argumento
+    'Dim planilhas As Variant
+    'planilhas = Array("LOTE A SP", "LOTE B", "LOTE C", "LOTE A RJ", "LOTE D", "LOTE E", "LOTE T", "LOTE T (CDC)")
+    
+    For Each planilha In planilhas
+        sourcePath = "C:\Users\Administrador\Documents\Alexandre\Modelo\modelo - LOTE E.xlsx"
+        destPath = "C:\Users\Administrador\Documents\Alexandre\Lotes\" & planilha & ".xlsx"
+        
+        ' Open the source and destination workbooks
+        Set sourceWorkbook = Workbooks.Open(sourcePath)
+        Set destWorkbook = Workbooks.Open(destPath)
+        
+        ' Set the source and destination worksheets (for example, the first sheet)
+        Set sourceSheet = sourceWorkbook.Sheets("LOTE E")
+        Set destSheet = destWorkbook.Sheets(1)
+        
+         ' Get the last row and column with data in the source sheet
+        lastRow = sourceSheet.Cells(sourceSheet.Rows.Count, 1).End(xlUp).Row
+        lastCol = sourceSheet.Cells(1, sourceSheet.Columns.Count).End(xlToLeft).Column
+        
+        ' Copy the formatting from the source sheet to the destination sheet
+        sourceSheet.Range(sourceSheet.Cells(1, 1), sourceSheet.Cells(lastRow, lastCol)).Copy
+        destSheet.Range(destSheet.Cells(1, 1), destSheet.Cells(lastRow, lastCol)).PasteSpecial Paste:=xlPasteFormats
+        destSheet.Cells.EntireColumn.AutoFit
+        
+        ' Close the source workbook without saving
+        sourceWorkbook.Close SaveChanges:=False
+        
+        ' Save the destination workbook
+        destWorkbook.Save
+        
+        ' Close the destination workbook
+        destWorkbook.Close SaveChanges:=True
+        
+        ' Turn off copy mode
+        Application.CutCopyMode = False
+        
+    Next planilha
+    
+    'MsgBox "Formatting copied successfully!"
+End Sub
 
+Sub limpar_base_dados()
+    Sheets("Base dados").UsedRange.ClearContents
+End Sub
+
+
+Sub importar_base_dados()
+    Dim sourceWorkbook As Workbook
+    Dim destinationWorkbook As Workbook
+    Dim sourceSheet As Worksheet
+    Dim destinationSheet As Worksheet
+    Dim sourcePath As String
+    Dim lastRow As Long
+    Dim lastCol As Long
+    Dim file_name As Variant
+
+    ' Specify the file path of the source file
+    sourcePath = "C:\Users\Administrador\Documents\Alexandre\"
+    file_name = Dir(sourcePath & "*ACOMPANHAMENTO DOS DOCUMENTOS*")
+    
+    ' Set the destination workbook and sheet (this workbook)
+    Set destinationWorkbook = ThisWorkbook
+    Set destinationSheet = destinationWorkbook.Sheets("Base dados")
+    
+    ' Clear destination sheet
+    destinationSheet.Cells.Clear
+    
+    lastRowDest = 1
+    firstRowSource = 1
+    
+    'pega todos os arquivos que tem o file_name
+    While file_name <> ""
+        ' Open the source workbook
+        Set sourceWorkbook = Workbooks.Open(sourcePath & file_name)
+        
+        ' Set the source sheet
+        Set sourceSheet = sourceWorkbook.Sheets("ACOMPANHAMENTO DOS DOCUMENTOS_0")
+        
+        ' Find the last row and column with data in the source sheet
+        lastRow = sourceSheet.UsedRange.Rows(sourceSheet.UsedRange.Rows.Count).Row
+        lastCol = sourceSheet.UsedRange.Columns.Count
+        
+        ' Copy data from the source sheet to the destination sheet
+        sourceSheet.Range(sourceSheet.Cells(firstRowSource, 1), sourceSheet.Cells(lastRow, lastCol)).Copy destinationSheet.Cells(lastRowDest, 1)
+    
+        lastRowDest = destinationSheet.UsedRange.Rows(destinationSheet.UsedRange.Rows.Count).Row + 1
+        
+        ' Close the source workbook (without saving changes)
+        sourceWorkbook.Close False
+        
+        'Set the fileName to the next file
+        file_name = Dir
+        
+        'variavel para lutar cabecalho
+        firstRowSource = 2
+    Wend
+    
+    ' Display a message once the import is done
+    'MsgBox "Data imported from " & sourceWorkbook.Name & " to " & destinationSheet.Name
+End Sub
+
+
+' Procedure : TurnOffFunctionality
+' Purpose   : Turn off automatic calculations, events and screen updating
+Public Sub TurnOffFunctionality()
+    Application.DisplayStatusBar = False
+    Application.EnableEvents = False
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+End Sub
+
+' Procedure : TurnOnFunctionality
+' Purpose   : turn on automatic calculations, events and screen updating
+Public Sub TurnOnFunctionality()
+    Application.DisplayStatusBar = True
+    Application.EnableEvents = True
+    Application.ScreenUpdating = True
+    Application.DisplayAlerts = True
+End Sub
 

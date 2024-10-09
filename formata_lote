@@ -1,0 +1,79 @@
+Dim fileName As String
+
+Sub formatar_lote()
+    Dim wsSource As Worksheet
+    Dim wsTarget As Worksheet
+    Dim rngSource As Range
+    Dim rngDropdown As Range
+    Dim rng As Range
+    Dim lastRow As Long
+
+    ' Obter nome do arquivo sem extensão
+    GetWorkbookNameWithoutExtension
+
+    ' Obter o número da última linha da planilha de destino
+    lastRow = GetLastRow(ThisWorkbook.Sheets(fileName), 1)
+    
+    ' Filtrar planilha de destino na coluna 28 (coluna AB), onde o valor é 0
+    With ThisWorkbook.Sheets(fileName)
+        .Range("A1:AS1").AutoFilter
+        .Range("A1:AS1").AutoFilter Field:=28, Criteria1:=0
+    End With
+    
+    ' Definir a planilha de origem e destino
+    Set wsSource = ThisWorkbook.Worksheets("JUSTIFICATIVAS")
+    Set wsTarget = ThisWorkbook.Worksheets(fileName)
+    
+    ' Definir o intervalo de origem para o dropdown
+    Set rngSource = wsSource.Range("A:A")
+    Set rng = wsSource.Range("A1", wsSource.Cells(wsSource.Rows.Count, "A").End(xlUp))
+    
+    ' Aplicar ordenação crescente
+    wsSource.Sort.SortFields.Clear
+    wsSource.Sort.SortFields.Add Key:=rng, SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+    With wsSource.Sort
+        .SetRange rng
+        .Header = xlNo
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+    
+    ' Definir o intervalo onde o dropdown será criado
+    Set rngDropdown = wsTarget.Range("AM2:AO" & lastRow)
+    rngDropdown.Columns.ColumnWidth = 45
+    
+    ' Criar a lista suspensa (dropdown)
+    With rngDropdown.Validation
+        .Delete
+        .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Operator:= _
+            xlBetween, Formula1:="='" & wsSource.Name & "'!" & rngSource.Address
+        .IgnoreBlank = True
+        .InCellDropdown = True
+        .ShowInput = True
+        .ShowError = True
+    End With
+End Sub
+
+' Função para obter o nome do arquivo sem a extensão
+Sub GetWorkbookNameWithoutExtension()
+    Dim wbName As String
+    Dim pos As Long
+    
+    ' Obter o nome da pasta de trabalho atual
+    wbName = ThisWorkbook.Name
+
+    ' Encontrar a posição do último ponto para remover a extensão
+    pos = InStrRev(wbName, ".")
+    If pos > 0 Then
+        wbName = Left(wbName, pos - 1)
+    End If
+    
+    fileName = wbName
+End Sub
+
+' Função para obter a última linha usada em uma coluna específica
+Function GetLastRow(ws As Worksheet, col As Long) As Long
+    GetLastRow = ws.Cells(ws.Rows.Count, col).End(xlUp).Row
+End Function

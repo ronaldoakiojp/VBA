@@ -1,0 +1,193 @@
+Dim fileName As String
+Dim lastRow As Long
+
+' Procedure : desligar_funcionalidades
+' Purpose   : Desativa funções automáticas como cálculos, eventos e atualizações de tela para melhorar o desempenho
+Sub desligar_funcionalidades()
+    Application.DisplayStatusBar = False
+    Application.EnableEvents = False
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+End Sub
+
+' Procedure : ligar_funcionalidades
+' Purpose   : Reativa as funções automáticas que foram desativadas pela sub desligar_funcionalidades
+Sub ligar_funcionalidades()
+    Application.DisplayStatusBar = True
+    Application.EnableEvents = True
+    Application.ScreenUpdating = True
+    Application.DisplayAlerts = True
+End Sub
+
+' Função : GetWorkbookNameWithoutExtension
+' Purpose : Obtém o nome do arquivo atual sem a extensão
+Sub GetWorkbookNameWithoutExtension()
+    Dim wbName As String
+    Dim pos As Long
+    
+    ' Obtém o nome da pasta de trabalho atual
+    wbName = ThisWorkbook.Name
+
+    ' Encontra a posição do último ponto para remover a extensão do nome
+    pos = InStrRev(wbName, ".")
+    If pos > 0 Then
+        wbName = Left(wbName, pos - 1)
+    End If
+    
+    fileName = wbName ' Armazena o nome do arquivo sem extensão
+End Sub
+
+' Função : GetLastRow
+' Purpose : Retorna a última linha preenchida em uma coluna específica
+Function GetLastRow(ws As Worksheet, col As Long) As Long
+    GetLastRow = ws.Cells(ws.Rows.Count, col).End(xlUp).row ' Retorna o número da última linha com dados na coluna especificada
+End Function
+
+' Procedure : formatar_lote
+' Purpose   : Formata uma planilha, criando listas suspensas (dropdowns) com base em outra planilha
+Sub formatar_lote()
+    Dim wsSource As Worksheet
+    Dim wsTarget As Worksheet
+    Dim rngSource As Range
+    Dim rngDropdown As Range
+    Dim rng As Range
+   
+    desligar_funcionalidades ' Desativa funcionalidades para otimizar o processamento
+    
+    ' Obtém o nome do arquivo sem a extensão
+    GetWorkbookNameWithoutExtension
+
+    ' Obtém o número da última linha preenchida na planilha de destino
+    lastRow = GetLastRow(ThisWorkbook.Sheets(fileName), 1)
+    
+    ' Define as planilhas de origem (JUSTIFICATIVAS) e destino (baseado no nome do arquivo)
+    Set wsSource = ThisWorkbook.Worksheets("JUSTIFICATIVAS")
+    Set wsTarget = ThisWorkbook.Worksheets(fileName)
+    
+    ' Define o intervalo de dados de origem para o dropdown
+    Set rngSource = wsSource.Range("A:A")
+    Set rng = wsSource.Range("A1", wsSource.Cells(wsSource.Rows.Count, "A").End(xlUp)) ' Intervalo dinâmico de dados
+    
+    ' Aplica a ordenação crescente nos dados de origem
+    wsSource.Sort.SortFields.Clear
+    wsSource.Sort.SortFields.Add Key:=rng, SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+    With wsSource.Sort
+        .SetRange rng
+        .Header = xlNo
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+    
+    ' Define o intervalo onde será criado o dropdown
+    Set rngDropdown = wsTarget.Range("AM2:AO" & lastRow)
+    rngDropdown.Columns.ColumnWidth = 45 ' Ajusta a largura das colunas para o dropdown
+    
+    ' Cria a lista suspensa (dropdown) no intervalo especificado
+    With rngDropdown.Validation
+        .Delete ' Remove qualquer validação existente
+        .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Operator:= _
+            xlBetween, Formula1:="='" & wsSource.Name & "'!" & rngSource.Address ' Define a lista suspensa com os dados da coluna A da planilha de origem
+        .IgnoreBlank = True
+        .InCellDropdown = True
+        .ShowInput = True
+        .ShowError = True
+    End With
+    
+    ' Chama a função justificar_lote para aplicar valores e filtros
+    justificar_lote
+    
+    ligar_funcionalidades ' Reativa funcionalidades
+End Sub
+
+' Procedure : justificar_lote
+' Purpose   : Aplica filtros e preenche valores específicos em determinadas colunas da planilha de destino
+Sub justificar_lote()
+    Dim ws As Worksheet
+    Dim mes As String
+    Dim rng As Range
+    Dim cell As Range
+    
+    Set ws = ThisWorkbook.Sheets(fileName)
+    mes = UCase(Format(DateAdd("m", -1, Now), "mmmm")) ' Obtém o nome do mês anterior em letra maiuscula
+    
+    ' Preenche as colunas Z, AE, AJ com o mês anterior
+    With ws
+        .Range("Z2:Z" & lastRow).Value = mes
+        .Range("AE2:AE" & lastRow).Value = mes
+        .Range("AJ2:AJ" & lastRow).Value = mes
+        
+        ' Aplicar filtros e atualizar colunas com valores específicos
+        ApplyFilterAndUpdate ws, 28, "AB2:AB", 1
+        ApplyFilterAndUpdate ws, 38, "AL2:AL", 1
+        ApplyFilterAndUpdate ws, 28, "AM2:AM", "1.10 C&A CD - SOLICITAÇÃO C&A"
+        ApplyFilterAndUpdate ws, 28, "AO2:AO", "1.10 C&A CD - SOLICITAÇÃO C&A"
+        
+        ' Filtrar na coluna N e copiar valores para a coluna AN correspondente
+        .Range("A1:AS1").AutoFilter Field:=14, Criteria1:="4.*"
+        On Error Resume Next
+        Set rng = .Range("N2:N" & lastRow).SpecialCells(xlCellTypeVisible)
+        For Each cell In rng
+            .Range("AN" & cell.row).Value = cell.Value
+        Next cell
+        On Error GoTo 0
+        
+        ' Limpa todos os filtros
+        If .AutoFilterMode Then .ShowAllData
+    End With
+End Sub
+
+' Procedure : ApplyFilterAndUpdate
+' Purpose   : Aplica um filtro em uma coluna e atualiza um intervalo visível com um valor específico
+Sub ApplyFilterAndUpdate(ws As Worksheet, filterCol As Long, rangeAddress As String, updateValue As Variant)
+    Dim rng As Range
+    On Error Resume Next
+    ' Aplica o filtro
+    ws.Range("A1:AS1").AutoFilter Field:=filterCol, Criteria1:=0
+    ' Atualiza o intervalo visível com o valor especificado
+    Set rng = ws.Range(rangeAddress & lastRow).SpecialCells(xlCellTypeVisible)
+    For Each cell In rng
+        cell.Value = updateValue
+    Next cell
+    ' Limpa o filtro
+    If ws.AutoFilterMode Then ws.ShowAllData
+    On Error GoTo 0
+End Sub
+
+' Procedure : Justificar_CJE
+' Purpose   : Oculta colunas específicas e aplica um filtro na coluna AF para valores 0
+Sub Justificar_CJE()
+    ' Oculta colunas específicas
+    Columns("A:A").EntireColumn.Hidden = True
+    Columns("D:E").EntireColumn.Hidden = True
+    Columns("H:I").EntireColumn.Hidden = True
+    Columns("L:AF").EntireColumn.Hidden = True
+    Columns("AH:AM").EntireColumn.Hidden = True
+    Columns("AO:AO").EntireColumn.Hidden = True
+    Columns("AP:AS").EntireColumn.Hidden = True
+    
+    ' Aplica filtro na coluna AF para valores 0
+    Range("A1:AS1").AutoFilter Field:=33, Criteria1:=0
+End Sub
+
+' Procedure : zerar_filtros
+' Purpose   : Restaura a visualização das colunas ocultas e limpa todos os filtros aplicados
+Sub zerar_filtros()
+
+    ' Mostra as colunas que estavam ocultas
+    Columns("A:A").EntireColumn.Hidden = False
+    Columns("D:E").EntireColumn.Hidden = False
+    Columns("H:I").EntireColumn.Hidden = False
+    Columns("L:AF").EntireColumn.Hidden = False
+    Columns("AH:AM").EntireColumn.Hidden = False
+    Columns("AO:AO").EntireColumn.Hidden = False
+    Columns("AP:AS").EntireColumn.Hidden = False
+
+    ' Limpa todos os filtros ativos
+    On Error Resume Next
+    If ActiveSheet.AutoFilterMode Then ActiveSheet.ShowAllData
+End Sub
+
+
+

@@ -35,6 +35,23 @@ Sub GetWorkbookNameWithoutExtension()
     fileName = wbName ' Armazena o nome do arquivo sem extensão
 End Sub
 
+' Procedure : ApplyFilterAndUpdate
+' Purpose   : Aplica um filtro em uma coluna e atualiza um intervalo visível com um valor específico
+Sub ApplyFilterAndUpdate(ws As Worksheet, filterCol As Long, rangeAddress As String, updateValue As Variant)
+    Dim rng As Range
+    On Error Resume Next
+    ' Aplica o filtro
+    ws.Range("A1:AS1").AutoFilter Field:=filterCol, Criteria1:=0
+    ' Atualiza o intervalo visível com o valor especificado
+    Set rng = ws.Range(rangeAddress & lastRow).SpecialCells(xlCellTypeVisible)
+    For Each cell In rng
+        cell.Value = updateValue
+    Next cell
+    ' Limpa o filtro
+    If ws.AutoFilterMode Then ws.ShowAllData
+    On Error GoTo 0
+End Sub
+
 ' Função : GetLastRow
 ' Purpose : Retorna a última linha preenchida em uma coluna específica
 Function GetLastRow(ws As Worksheet, col As Long) As Long

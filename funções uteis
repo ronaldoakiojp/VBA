@@ -1,23 +1,42 @@
-' Função para obter a última linha usada em uma coluna específica
-Function pegar_ultima_linha(ws As Worksheet, col As Long) As Long
-    GetLastRow = ws.Cells(ws.Rows.Count, col).End(xlUp).Row
-End Function
 
-' Procedure : TurnOffFunctionality
-' Purpose   : Turn off automatic calculations, events and screen updating
-Public Sub desligar_funcionalidades()
+' Procedure : desligar_funcionalidades
+' Purpose   : Desativa funções automáticas como cálculos, eventos e atualizações de tela para melhorar o desempenho
+Sub desligar_funcionalidades()
     Application.DisplayStatusBar = False
     Application.EnableEvents = False
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
 End Sub
 
-' Procedure : TurnOnFunctionality
-' Purpose   : turn on automatic calculations, events and screen updating
-Public Sub desligar_funcionalidades()
+' Procedure : ligar_funcionalidades
+' Purpose   : Reativa as funções automáticas que foram desativadas pela sub desligar_funcionalidades
+Sub ligar_funcionalidades()
     Application.DisplayStatusBar = True
     Application.EnableEvents = True
     Application.ScreenUpdating = True
     Application.DisplayAlerts = True
 End Sub
 
+' Função : GetWorkbookNameWithoutExtension
+' Purpose : Obtém o nome do arquivo atual sem a extensão
+Sub GetWorkbookNameWithoutExtension()
+    Dim wbName As String
+    Dim pos As Long
+    
+    ' Obtém o nome da pasta de trabalho atual
+    wbName = ThisWorkbook.Name
+
+    ' Encontra a posição do último ponto para remover a extensão do nome
+    pos = InStrRev(wbName, ".")
+    If pos > 0 Then
+        wbName = Left(wbName, pos - 1)
+    End If
+    
+    fileName = wbName ' Armazena o nome do arquivo sem extensão
+End Sub
+
+' Função : GetLastRow
+' Purpose : Retorna a última linha preenchida em uma coluna específica
+Function GetLastRow(ws As Worksheet, col As Long) As Long
+    GetLastRow = ws.Cells(ws.Rows.Count, col).End(xlUp).row ' Retorna o número da última linha com dados na coluna especificada
+End Function

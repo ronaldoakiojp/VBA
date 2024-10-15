@@ -40,7 +40,7 @@ End Sub
 ' Função : GetLastRow
 ' Purpose : Retorna a última linha preenchida em uma coluna específica
 Function GetLastRow(ws As Worksheet, col As Long) As Long
-    GetLastRow = ws.Cells(ws.Rows.Count, col).End(xlUp).row ' Retorna o número da última linha com dados na coluna especificada
+    GetLastRow = ws.Cells(ws.Rows.Count, col).End(xlUp).Row ' Retorna o número da última linha com dados na coluna especificada
 End Function
 
 ' Procedure : formatar_lote
@@ -129,12 +129,27 @@ Sub justificar_lote()
         On Error Resume Next
         Set rng = .Range("N2:N" & lastRow).SpecialCells(xlCellTypeVisible)
         For Each cell In rng
-            .Range("AN" & cell.row).Value = cell.Value
+            .Range("AN" & cell.Row).Value = cell.Value
         Next cell
         On Error GoTo 0
         
         ' Limpa todos os filtros
         If .AutoFilterMode Then .ShowAllData
+        
+        ' tratamento especifico para os lote D e lote E, por causa dos cavalos mecanicos
+        If fileName = "LOTE D" Or fileName = "LOTE E" Then
+            .Range("A1:AS1").AutoFilter Field:=16, Criteria1:="<>SAO PAULO"
+            On Error Resume Next
+            Columns("P:P").EntireColumn.Hidden = False
+            Set rng = .Range("P2:P" & lastRow).SpecialCells(xlCellTypeVisible)
+            rng.EntireRow.Delete
+            On Error GoTo 0
+        End If
+        
+        ' Limpa todos os filtros
+        On Error Resume Next
+        If .AutoFilterMode Then .ShowAllData
+        On Error GoTo 0
     End With
 End Sub
 
@@ -188,6 +203,11 @@ Sub zerar_filtros()
     On Error Resume Next
     If ActiveSheet.AutoFilterMode Then ActiveSheet.ShowAllData
 End Sub
+
+
+
+
+
 
 
 

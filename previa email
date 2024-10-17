@@ -1,0 +1,304 @@
+Dim file_name As String
+
+' Procedure : desligar_funcionalidades
+' Purpose   : Desativa funções automáticas como cálculos, eventos e atualizações de tela para melhorar o desempenho
+Sub desligar_funcionalidades()
+    With Application
+        .DisplayStatusBar = False
+        .EnableEvents = False
+        .ScreenUpdating = False
+        .DisplayAlerts = False
+    End With
+End Sub
+
+' Procedure : ligar_funcionalidades
+' Purpose   : Reativa as funções automáticas que foram desativadas pela sub desligar_funcionalidades
+Sub ligar_funcionalidades()
+    With Application
+        .DisplayStatusBar = True
+        .EnableEvents = True
+        .ScreenUpdating = True
+        .DisplayAlerts = True
+    End With
+End Sub
+
+' Função : GetWorkbookNameWithoutExtension
+' Purpose : Obtém o nome do arquivo atual sem a extensão
+Sub GetWorkbookNameWithoutExtension()
+    Dim wbName As String
+    Dim pos As Long
+    
+    ' Obtém o nome da pasta de trabalho atual
+    wbName = ThisWorkbook.Name
+
+    ' Encontra a posição do último ponto para remover a extensão do nome
+    pos = InStrRev(wbName, ".")
+    If pos > 0 Then
+        wbName = Left(wbName, pos - 1)
+    End If
+    
+    ' Armazena o nome do arquivo sem a extensão
+    file_name = wbName
+End Sub
+
+' Função : GetLastRow
+' Purpose : Retorna a última linha preenchida em uma coluna específica
+Function GetLastRow(ws As Worksheet, col As Long) As Long
+    GetLastRow = ws.Cells(ws.Rows.Count, col).End(xlUp).Row ' Retorna o número da última linha com dados na coluna especificada
+End Function
+
+' Sub : copiar_arquivos
+' Purpose : Copia o arquivo original para o destino fornecido
+Sub copiar_arquivos(file_dest As String)
+    Dim xlobj As Object
+    Dim original As String
+    
+    Set xlobj = CreateObject("Scripting.FileSystemObject")
+    
+    ' Define o caminho do arquivo original
+    original = ThisWorkbook.Path & "\" & file_name & ".xlsb"
+    
+    ' Realiza a cópia
+    xlobj.CopyFile original, file_dest, True
+    
+    ' Limpa a variável de objeto
+    Set xlobj = Nothing
+End Sub
+
+' Sub : principal
+' Purpose : Fluxo principal para realizar operações de cópia, manipulação de dados e envio de e-mails
+Sub principal()
+    Dim arquivo As String, DirFile As String, destinatarios As String, transportadora As String
+    Dim file_path As String
+    Dim i As Long
+    Dim wb As Workbook
+    Dim array_transportadoras() As Variant
+    ReDim array_transportadoras(1 To 5)
+    
+    ' Desativa funcionalidades para melhorar a performance
+    desligar_funcionalidades
+    
+    ' Obtém o nome do arquivo sem extensão
+    GetWorkbookNameWithoutExtension
+    
+    ' Define o caminho do arquivo
+
+    file_path = ThisWorkbook.Path
+    
+    ' Lista as transportadoras e seus respectivos arquivos
+    array_transportadoras(1) = file_name & " Prévia_IMEDIATO.xlsb"
+    array_transportadoras(2) = file_name & " Prévia_LEAO LOG.xlsb"
+    array_transportadoras(3) = file_name & " Prévia_RAFER.xlsb"
+    array_transportadoras(4) = file_name & " Prévia_AEROSOFT.xlsb"
+    array_transportadoras(5) = file_name & " Prévia_SOLUCIONA.xlsb"
+
+    ' Loop para processar cada transportadora]
+    For i = 1 To 5
+        DirFile = file_path & "\" & array_transportadoras(i)
+        
+        ' Verifica se o arquivo existe e copia se necessário
+        If Dir(DirFile) = "" Then
+            copiar_arquivos DirFile
+        End If
+    Next i
+    
+    For i = 1 To 5
+        
+        DirFile = file_path & "\" & array_transportadoras(i)
+        
+        ' Extrai o nome da transportadora do nome do arquivo
+        transportadora = Mid(array_transportadoras(i), InStr(array_transportadoras(i), "_"), InStr(array_transportadoras(i), "."))
+        transportadora = Left(transportadora, Len(transportadora) - 5)
+        transportadora = Right(transportadora, Len(transportadora) - 1)
+        
+        ' Abre o arquivo da transportadora
+        Workbooks.Open Filename:=DirFile
+        Set wb = Workbooks(array_transportadoras(i))
+        
+        With wb
+            ' Oculta planilhas irrelevantes
+            If .Worksheets("Metas").Visible Then
+                .Worksheets("Metas").Visible = False
+                .Worksheets("CANCEL. INVENT.").Visible = False
+                .Worksheets("INVENTÁRIO 2024").Visible = False
+            End If
+            
+            ' Manipula os dados na planilha "PLANEJAMENTO DA SEMANA"
+            Dim last_row As Long
+            last_row = GetLastRow(.Worksheets("PLANEJAMENTO DA SEMANA"), 2)
+            With .Worksheets("PLANEJAMENTO DA SEMANA")
+                .Range("B25:J25").AutoFilter field:=9, Criteria1:="<>" & transportadora
+                .Range("B26:B" & last_row).SpecialCells(xlCellTypeVisible).EntireRow.Delete
+                
+                On Error Resume Next
+                .ShowAllData
+                On Error GoTo 0
+                
+                .Range("B26:BG" & last_row).Copy
+                .Range("B26:BG" & last_row).PasteSpecial xlPasteValues
+            End With
+        
+            ' Manipula os dados na planilha "FREQUÊNCIA ROTA"
+            With .Worksheets("FREQUÊNCIA ROTA")
+                .Range("L:AQ").EntireColumn.Delete
+                If transportadora = "SOLUCIONA" Then
+                    .Range("A1:K1").AutoFilter field:=2, Criteria1:="<>" & transportadora, Operator:=xlAnd, Criteria2:="<>Soluciona WEB"
+                Else
+                    .Range("A1:K1").AutoFilter field:=2, Criteria1:="<>" & transportadora
+                End If
+                .Range("A2:A" & last_row).SpecialCells(xlCellTypeVisible).EntireRow.Delete
+                
+                On Error Resume Next
+                .ShowAllData
+                On Error GoTo 0
+            End With
+
+            ' Cria a planilha de roteirização da semana
+            Dim wsRoteirizacao As Worksheet
+            Set wsRoteirizacao = .Sheets.Add(After:=Worksheets("PLANEJAMENTO DA SEMANA"))
+            wsRoteirizacao.Name = "ROTEIRIZAÇÃO " & transportadora
+            
+            ' Copia os dados de acordo com a transportadora
+            Select Case transportadora
+                Case "IMEDIATO"
+                    .Worksheets("ROTEIRIZAÇÃO DA SEMANA").Range("B529:K930").Copy wsRoteirizacao.Range("A1")
+                    .Worksheets("ROTEIRIZAÇÃO DA SEMANA").Range("B981:K1170").Copy wsRoteirizacao.Range("M1")
+                    destinatarios = "edilson.silva@grupoimediato.com.br; Pedro Santos <pedro.santos@grupoimediato.com.br>; Marcio Goncalves <marcio.goncalves@grupoimediato.com.br>; TAIZA.SOUZA@IMEDIATONEXWAY.COM.BR <taiza.souza@imediatonexway.com.br>"
+                Case "LEAO LOG"
+                    .Worksheets("ROTEIRIZAÇÃO DA SEMANA").Range("B1320:K1381").Copy wsRoteirizacao.Range("A1")
+                    destinatarios = "planejamento@leaolog.com.br; paolo@leaolog.com.br; guilherme.nascimento@leaolog.com.br; carlos.alberto@leaolog.com.br; 'Renan' <renan@leaolog.com.br>; programacaocea@leaolog.com.br; marcos.ferreira@leaolog.com.br; douglas.mariano@leaolog.com.br"
+                Case "RAFER"
+                    .Worksheets("ROTEIRIZAÇÃO DA SEMANA").Range("B1388:K1600").Copy wsRoteirizacao.Range("A1")
+                    destinatarios = "marcella.ribeiro@rotafreitas.com.br; adriana.neves@rotafreitas.com.br; ana.silva@rotafreitas.com.br; Matheus Freitas | Rota Freitas <matheus.freitas@rotafreitas.com.br>"
+                Case "AEROSOFT"
+                    .Worksheets("ROTEIRIZAÇÃO DA SEMANA").Range("B455:K499").Copy wsRoteirizacao.Range("A1")
+                    destinatarios = "Alex Silva <alex.silva@aerosoftcargas.com.br>; Karina Angela de Matos <karina.angela@aerosoftcargas.com.br>; Rosangela dos Santos de Castro Pereira <rosangela.pereira@aerosoftcargas.com.br>; André Dornelles <andre.dornelles@aerosoftcargas.com.br>; Miriam Thomson <miriam.thomson@aerosoftcargas.com.br>"
+                Case "SOLUCIONA"
+                    .Worksheets("ROTEIRIZAÇÃO DA SEMANA").Range("B3:K431").Copy wsRoteirizacao.Range("A1")
+                    destinatarios = "Expedição C&A | Soluciona Logística <expedicao.cea@soluciona.com.br>; Cimario Quirino | Soluciona Logística <cimario.quirino@soluciona.com.br>; Caio Vitorino Faustino <caio.faustino@soluciona.com.br>; Luciano Minelli | Soluciona Logística <luciano.minelli@soluciona.com.br>"
+            End Select
+            
+            ' Ajusta a largura das colunas
+            wsRoteirizacao.UsedRange.Columns.AutoFit
+            
+            ' Exclui a planilha "ROTEIRIZAÇÃO DA SEMANA"
+            Application.DisplayAlerts = False
+            .Worksheets("ROTEIRIZAÇÃO DA SEMANA").Delete
+            Application.DisplayAlerts = True
+            
+            .Save
+            ' Envia o e-mail com os dados
+            enviar_email destinatarios, transportadora
+            
+            Application.DisplayAlerts = False
+            .Close
+            Application.DisplayAlerts = True
+        End With
+    Next i
+    
+    ' Reativa funcionalidades desativadas
+    ligar_funcionalidades
+End Sub
+
+' Sub : enviar_email
+' Purpose : Envia o e-mail com o arquivo anexo e informações da transportadora
+Sub enviar_email(destinatarios As String, transportadora As String)
+    Dim objeto_outlook As Object, Email As Object, file_path As String
+    Set objeto_outlook = CreateObject("Outlook.Application")
+    Set Email = objeto_outlook.CreateItem(0)
+    
+    file_path = ThisWorkbook.Path
+    
+    GetWorkbookNameWithoutExtension
+    
+    file_name = file_name & " Prévia_" & transportadora
+    
+    Email.Attachments.Add (file_path & "\" & file_name & ".xlsb")
+    
+    traco = WorksheetFunction.Find("S-", file_name)
+
+    semana = Right(Mid(file_name, traco, 4), 2)
+    
+    With Email
+        ' Exibe o e-mail antes de enviar (para edição, se necessário)
+        .display
+        .To = destinatarios
+        .cc = "Danilo Diego de Assis <danilo.assis@cea.com.br>; Ronaldo Akio Miyoshi <ronaldo.miyoshi-terceiro@cea.com.br>"
+    
+        If transportadora = "RAFER" Then
+            .Subject = "Prévia semana " & semana & " - Rota Freitas"
+        Else
+            .Subject = "Prévia semana " & semana & " - " & transportadora
+        End If
+        
+        texto = "Prezados(as),<br>" _
+            & "Espero que estejam bem.<br><br>" _
+            & "<b><u>Segue em anexo a  prévia da escala de carregamento da semana " & semana & " no CDJ</b></u>. Peço que verifiquem minuciosamente a escala de carregamento anexa e nos informem se ela está seguindo rigorosamente a roteirização planejada.<br>" _
+            & "Observações:<br><br>" _
+            & "<ol style='margin-top:0cm' start=1 type=1><li class=MsoListParagraph style='margin-left:18.0pt;mso-list:l0 level1 lfo3'><i><span style='background:yellow;mso-highlight:yellow;mso-fareast-language:PT-BR'>Precisamos da confirmação do atendimento da escala até a sexta-feira, às 12hs</i></span><br></li>" _
+            & "<li class=MsoListParagraph style='margin-left:18.0pt;mso-list:l0 level1 lfo3'>2.  Segue resumo semanal da " & transportadora & ":<br></li></ol>"
+    
+        .htmlbody = texto & "<br>" _
+            & RangetoHTML(Worksheets("FREQUÊNCIA ROTA").Range("A1:K30")) & "<br>" _
+            & "Atenciosamente <br><br>" _
+            & .htmlbody
+    End With
+End Sub
+
+Function RangetoHTML(rng As Range)
+' Changed by Ron de Bruin 28-Oct-2006
+' Working in Office 2000-2016
+    Dim fso As Object
+    Dim ts As Object
+    Dim TempFile As String
+    Dim TempWB As Workbook
+
+    TempFile = Environ$("temp") & "\" & Format(Now, "dd-mm-yy h-mm-ss") & ".htm"
+
+    'Copy the range and create a new workbook to past the data in
+    rng.Copy
+    Set TempWB = Workbooks.Add(1)
+    With TempWB.Sheets(1)
+        .Cells(1).PasteSpecial Paste:=8
+        .Cells(1).PasteSpecial xlPasteValues, , False, False
+        .Cells(1).PasteSpecial xlPasteFormats, , False, False
+        .Cells(1).Select
+        Application.CutCopyMode = False
+        On Error Resume Next
+        .DrawingObjects.Visible = True
+        .DrawingObjects.Delete
+        On Error GoTo 0
+    End With
+
+    'Publish the sheet to a htm file
+    With TempWB.PublishObjects.Add( _
+         SourceType:=xlSourceRange, _
+         Filename:=TempFile, _
+         Sheet:=TempWB.Sheets(1).Name, _
+         Source:=TempWB.Sheets(1).UsedRange.Address, _
+         HtmlType:=xlHtmlStatic)
+        .Publish (True)
+    End With
+
+    'Read all data from the htm file into RangetoHTML
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set ts = fso.GetFile(TempFile).OpenAsTextStream(1, -2)
+    RangetoHTML = ts.readall
+    ts.Close
+    RangetoHTML = Replace(RangetoHTML, "align=center x:publishsource=", _
+                          "align=left x:publishsource=")
+
+    'Close TempWB
+    TempWB.Close savechanges:=False
+
+    'Delete the htm file we used in this function
+    Kill TempFile
+
+    Set ts = Nothing
+    Set fso = Nothing
+    Set TempWB = Nothing
+End Function
+
+
+
+

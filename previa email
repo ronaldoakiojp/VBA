@@ -99,7 +99,11 @@ Sub principal()
         ' Verifica se o arquivo existe e copia se necessário
         If Dir(DirFile) = "" Then
             copiar_arquivos DirFile
+        Else
+            Kill DirFile
+            copiar_arquivos DirFile
         End If
+        
     Next i
     
     For i = 1 To 5
@@ -219,16 +223,25 @@ Sub enviar_email(destinatarios As String, transportadora As String)
 
     semana = Right(Mid(file_name, traco, 4), 2)
     
+    dia_semana = Format(Date, "dddd")
+    
+    Select Case dia_semana
+        Case "segunda-feira", "terça-feira", "quarta-feiras"
+            previa = "Prévia"
+        Case Else
+            previa = "Fechamento"
+    End Select
+    
     With Email
         ' Exibe o e-mail antes de enviar (para edição, se necessário)
         .display
         .To = destinatarios
         .cc = "Danilo Diego de Assis <danilo.assis@cea.com.br>; Ronaldo Akio Miyoshi <ronaldo.miyoshi-terceiro@cea.com.br>"
-    
+        
         If transportadora = "RAFER" Then
-            .Subject = "Prévia semana " & semana & " - Rota Freitas"
+            .Subject = previa & " semana " & semana & " - Rota Freitas"
         Else
-            .Subject = "Prévia semana " & semana & " - " & transportadora
+            .Subject = previa & " semana " & semana & " - " & transportadora
         End If
         
         texto = "Prezados(as),<br>" _
@@ -236,7 +249,7 @@ Sub enviar_email(destinatarios As String, transportadora As String)
             & "<b><u>Segue em anexo a  prévia da escala de carregamento da semana " & semana & " no CDJ</b></u>. Peço que verifiquem minuciosamente a escala de carregamento anexa e nos informem se ela está seguindo rigorosamente a roteirização planejada.<br>" _
             & "Observações:<br><br>" _
             & "<ol style='margin-top:0cm' start=1 type=1><li class=MsoListParagraph style='margin-left:18.0pt;mso-list:l0 level1 lfo3'><i><span style='background:yellow;mso-highlight:yellow;mso-fareast-language:PT-BR'>Precisamos da confirmação do atendimento da escala até a sexta-feira, às 12hs</i></span><br></li>" _
-            & "<li class=MsoListParagraph style='margin-left:18.0pt;mso-list:l0 level1 lfo3'>2.  Segue resumo semanal da " & transportadora & ":<br></li></ol>"
+            & "<li class=MsoListParagraph style='margin-left:18.0pt;mso-list:l0 level1 lfo3'>2.  Segue resumo semanal da " & transportadora & ":</li></ol>"
     
         .htmlbody = texto & "<br>" _
             & RangetoHTML(Worksheets("FREQUÊNCIA ROTA").Range("A1:K30")) & "<br>" _
@@ -298,6 +311,8 @@ Function RangetoHTML(rng As Range)
     Set fso = Nothing
     Set TempWB = Nothing
 End Function
+
+
 
 
 

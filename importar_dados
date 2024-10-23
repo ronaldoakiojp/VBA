@@ -1,0 +1,98 @@
+Sub importar_dados()
+    ' Disable functionalities temporarily
+    desligar_funcionalidades
+ 
+    ' Open file dialog to select a file
+    Dim formulario As FileDialog
+    Set formulario = Application.FileDialog(msoFileDialogOpen)
+ 
+    With formulario
+        .AllowMultiSelect = False
+        If .Show = -1 Then
+            ' A file was selected
+            .Execute
+        Else
+            ' User cancelled the dialog
+            Exit Sub
+        End If
+    End With
+ 
+    ' Reference the "PLANEJAMENTO DA SEMANA" sheet
+    With ActiveWorkbook.Sheets("PLANEJAMENTO DA SEMANA")
+        ' Clear any existing filters
+        If .AutoFilterMode Then .AutoFilter.ShowAllData
+        ' Copy specific columns (R, M, T, J)
+        .Range("R:R,M:M,T:T,J:J").EntireColumn.Copy
+    End With
+    ' Create a new temporary sheet
+    With ThisWorkbook
+        .Sheets.Add.Name = "temp"
+        With .Sheets("temp")
+            ' Paste copied data into columns H to K
+            .Range("H:K").PasteSpecial
+            ' Close the active workbook after pasting
+            ActiveWorkbook.Close
+            ' Remove the first 24 rows from the temporary sheet
+            .Range("H1:K24").EntireRow.Delete
+            ' Remove duplicate values based on column 2
+            .Range("H:K").RemoveDuplicates Columns:=2, Header:=xlYes
+            ' Copy specific columns to new positions
+            .Range("J:J").Copy Destination:=.Range("A:A") ' Column J to A
+            .Range("I:I").Copy Destination:=.Range("D:D") ' Column I to D
+            .Range("K:K").Copy Destination:=.Range("E:E") ' Column K to E
+            .Range("H:H").Copy Destination:=.Range("F:F") ' Column H to F
+            ' Set a specific time in G2
+            .Range("G2").Value = "12:00:00"
+            ' Find the last row in column A
+            Dim ultimaLinhaTemp As Long
+            ultimaLinhaTemp = .Range("A" & .Rows.Count).End(xlUp).Row
+            ' Populate formulas in columns B and C
+            .Range("B2:B" & ultimaLinhaTemp).Formula = "=IF($E2<$G$2,1,0)"
+            .Range("C2:C" & ultimaLinhaTemp).Formula = "=VLOOKUP(F2,'LOGO TRT'!A$3:B$12,2,0)"
+            ' Copy the range A2:F (up to ultimaLinhaTemp)
+            .Range("A2:F" & ultimaLinhaTemp).Copy
+        End With
+    End With
+    ' Reference the "BASE DE DADOS" sheet
+    With ThisWorkbook.Sheets("BASE DE DADOS")
+        Dim ultimaLinha As Long
+        ultimaLinha = .Range("A" & .Rows.Count).End(xlUp).Row
+        Dim adicionarLinha As Long
+        adicionarLinha = ultimaLinha + 1
+        ' Paste values from the temp sheet into BASE DE DADOS
+        .Range("A" & adicionarLinha & ":F" & adicionarLinha + ultimaLinhaTemp).PasteSpecial xlPasteValues
+        ' Copy formats from the second row
+        .Range("A2:F2").Copy
+        .Range("A2:F" & adicionarLinha + ultimaLinhaTemp).PasteSpecial Paste:=xlPasteFormats
+        ' Remove duplicates based on specified columns
+        .Range("A1:F" & adicionarLinha + ultimaLinhaTemp).RemoveDuplicates Columns:=Array(1, 4), Header:=xlYes
+    End With
+    ' Delete the temporary sheet
+    ThisWorkbook.Sheets("temp").Delete
+    ' Re-enable functionalities
+    ligar_funcionalidades
+End Sub
+ 
+ 
+' Procedure : desligar_funcionalidades
+' Purpose   : Desativa funções automáticas como cálculos, eventos e atualizações de tela para melhorar o desempenho
+Sub desligar_funcionalidades()
+    With Application
+        .DisplayStatusBar = False
+        .EnableEvents = False
+        .ScreenUpdating = False
+        .DisplayAlerts = False
+        .Calculation = xlCalculationManual
+    End With
+End Sub
+' Procedure : ligar_funcionalidades
+' Purpose   : Reativa as funções automáticas que foram desativadas pela sub desligar_funcionalidades
+Sub ligar_funcionalidades()
+    With Application
+        .DisplayStatusBar = True
+        .EnableEvents = True
+        .ScreenUpdating = True
+        .DisplayAlerts = True
+        .Calculation = xlCalculationAutomatic
+    End With
+End Sub

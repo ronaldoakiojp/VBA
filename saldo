@@ -1,0 +1,92 @@
+Sub importar_dados()
+    Dim main_file As String
+    Dim file_path As String
+    Dim file As String
+    Dim last_row As Long
+    Dim folder_name As String
+    
+    ' Desativar funcionalidades automáticas para melhorar desempenho
+    desligar_funcionalidades
+    
+    ' Definir nome do arquivo principal e o caminho para a pasta do dia
+    main_file = ThisWorkbook.Name
+    folder_name = Format(Date, "ddmm") & "\"
+    file_path = ThisWorkbook.Path & "\" & folder_name
+    
+    ' Obter o primeiro arquivo na pasta
+    file = Dir(file_path)
+    Do While file <> ""
+        ' Verificar o tipo de arquivo com base no nome e importar dados conforme o caso
+        Select Case True
+            Case file Like "*Rota - *"
+                importar_dados_arquivo file_path, file, main_file, "Rota"
+                
+            Case file Like "*Loja*"
+                importar_dados_arquivo file_path, file, main_file, "Loja CDJ"
+                
+            Case file Like "*Regional*"
+                importar_dados_arquivo file_path, file, main_file, "Regional"
+        End Select
+        
+        ' Obter o próximo arquivo na pasta
+        file = Dir
+    Loop
+    
+    ' Reativar funcionalidades automáticas
+    ligar_funcionalidades
+End Sub
+
+' Subroutine para desativar funcionalidades automáticas como cálculo, eventos e atualização de tela
+Sub desligar_funcionalidades()
+    With Application
+        .DisplayStatusBar = False
+        .EnableEvents = False
+        .ScreenUpdating = False
+        .DisplayAlerts = False
+        .Calculation = xlCalculationManual
+    End With
+End Sub
+
+' Subroutine para reativar funcionalidades automáticas
+Sub ligar_funcionalidades()
+    With Application
+        .DisplayStatusBar = True
+        .EnableEvents = True
+        .ScreenUpdating = True
+        .DisplayAlerts = True
+        .Calculation = xlCalculationAutomatic
+    End With
+End Sub
+
+' Subroutine auxiliar para importar dados do arquivo
+Sub importar_dados_arquivo(file_path As String, file As String, main_file As String, sheet_name As String)
+    Dim last_row As Long
+
+    ' Abrir o arquivo especificado
+    Workbooks.Open file_path & file
+    
+    With ActiveSheet
+        .UsedRange ' Atualizar o UsedRange para evitar linhas e colunas em branco
+        last_row = .UsedRange.Rows(.UsedRange.Rows.Count).Row
+        
+        ' Copiar dados do arquivo aberto
+        .Range("A4:C" & last_row).Copy
+    End With
+    If sheet_name = "Regional" Then
+        ' Colar valores na planilha do arquivo principal
+        With Workbooks(main_file).Sheets(sheet_name)
+            last_row = .UsedRange.Rows(.UsedRange.Rows.Count).Row
+            .Range("A4:C" & last_row).Value = "" ' Limpar células antes de colar
+            .Range("A4:C" & last_row).PasteSpecial xlPasteValues
+        End With
+    Else
+        ' Colar valores na planilha do arquivo principal
+        With Workbooks(main_file).Sheets(sheet_name)
+            last_row = .UsedRange.Rows(.UsedRange.Rows.Count).Row
+            .Range("A5:C" & last_row).Value = "" ' Limpar células antes de colar
+            .Range("A5:C" & last_row).PasteSpecial xlPasteValues
+        End With
+    End If
+    ' Fechar o arquivo aberto
+    Workbooks(file).Close
+End Sub
